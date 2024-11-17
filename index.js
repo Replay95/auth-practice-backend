@@ -1,3 +1,4 @@
+require(`dotenv`).config();
 const express = require("express");
 const cors = require("cors");
 const pool = require("./db");
@@ -8,10 +9,6 @@ const jwt = require("jsonwebtoken");
 
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
-
 const corsOption = {
   origin: ["http://localhost:5173"],
   optionSuccessStatus: 200,
@@ -21,7 +18,7 @@ app.use(cors(corsOption));
 
 app.use(express.json());
 
-app.get("/users", authenticateToken, async (req, res) => {
+app.get("/api/users", authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
     const userQuery =
@@ -29,7 +26,7 @@ app.get("/users", authenticateToken, async (req, res) => {
     const result = await pool.query(userQuery, [userId]);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ message: "エラーが発生しました" });
+      return res.status(404).json({ message: "ユーザーが見つかりません" });
     }
 
     res.json(result.rows[0]);
@@ -101,4 +98,8 @@ app.post("/api/login", async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: "エラーが発生しました" });
   }
+});
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT} .env: ${process.env.NODE_ENV}`);
 });
