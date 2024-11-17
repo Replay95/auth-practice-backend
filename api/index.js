@@ -103,3 +103,56 @@ app.post("/api/login", async (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT} .env: ${process.env.NODE_ENV}`);
 });
+
+app.get("/", (req, res) => {
+  res.send("Hello world");
+});
+
+app.get("/users", authenticateToken, async (req, res) => {
+  const { user } = req;
+
+  const result = await pool.query("SELECT * FROM users WHERE email = $1", [
+    user.email,
+  ]);
+  res.json(result.rows[0]);
+});
+
+app.post("/register", async (req, res) => {
+  const { email, password } = req.body;
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  await pool.query(
+    "INSERT INTO users (email, password) VALUES ($1, $2) RETURNING *",
+    [email, hashedPassword]
+  );
+
+  res.send("User registered");
+});
+
+app.post("/login", async (req, res) => {
+  const { email, password } = req.body;
+
+  const result = await pool.query("SELECT * FROM users WHERE email = $1", [
+    email,
+  ]);
+
+  if (result.rows.length === 0) {
+    return res.status(404).json({ error: "Wrong credential" });
+  }
+  const user = result.rows[0];
+  const isPasswodValid = await bcrypt.compare(password, user.password);
+
+  if (!isPasswodValid) {
+    return res.status(400).json({ error: "Wrong credential" });
+  }
+
+  const token = jwt.sign({ email: email }, SECRET_KEY, { expiresIn: "1h" });
+
+  res.cookie("authToken", token, {
+    httpOnly: true,
+    secure: true,
+    maxAge: 3600000,
+  });
+
+  res.json({ token });
+});
